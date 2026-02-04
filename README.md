@@ -1,16 +1,19 @@
-# React + Vite
+🏋️‍♂️ LongLong Gym Management System - Development Log
+🛠️ Phase 1: Local Infrastructure Setup
+Database Migration: Moved the project from a cloud-based MongoDB Atlas setup to a Local MongoDB Community Server to bypass network/ISP connection blocks.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Service Integration: Configured MongoDB as a Windows Service to ensure the database engine is always available on port 27017.
 
-Currently, two official plugins are available:
+Connection Optimization: Implemented dns.setDefaultResultOrder('ipv4first') in the backend to resolve local lookup delays.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+🔐 Phase 2: Security & Environment Configuration
+Environment Variables: Created a .env file to store sensitive data like the MONGO_URI and PORT, keeping them out of the main source code.
 
-## React Compiler
+Git Protection: Established a .gitignore file to prevent the node_modules folder and .env credentials from being uploaded to GitHub.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+💻 Phase 3: Full-Stack Integration
+Frontend Restoration: Fixed a "white screen" rendering issue by correcting the entry point import in main.jsx after a file rename.
 
-## Expanding the ESLint configuration
+Backend Handshake: Successfully linked the React frontend to the Node.js/Express backend using the fetch API.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Data Verification: Successfully registered test users (e.g., Jerico Asupre and Zuber) and verified their storage in the local MongoDB Compass vault.
