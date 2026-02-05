@@ -13,6 +13,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Change these lines in your server.js
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
 const MONGO_URI = process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;
 
@@ -36,6 +40,18 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true }); // Automatically track when members join
 
 const User = mongoose.model('User', userSchema);
+
+const coachSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  specialty: { type: String, required: true },
+  experience: { type: String },
+  image: { type: String, default: 'https://via.placeholder.com/150' }, // New Field
+  status: { type: String, default: 'available' }
+}, { timestamps: true });
+
+const Coach = mongoose.model('Coach', coachSchema);
+
+
 
 // Registration Endpoint
 app.post('/api/register', async (req, res) => {
@@ -130,6 +146,41 @@ app.delete('/api/users/:id', async (req, res) => {
     res.status(200).json({ message: "Member removed successfully" });
   } catch (err) {
     res.status(500).json({ message: "Error deleting user", error: err.message });
+  }
+});
+
+// 2. Add Coach Route
+app.post('/api/coaches', async (req, res) => {
+  try {
+    const newCoach = new Coach(req.body);
+    await newCoach.save();
+    res.json({ message: "Coach added successfully!", coach: newCoach });
+  } catch (err) {
+    res.status(500).json({ message: "Error adding coach" });
+  }
+});
+
+// 3. Get All Coaches Route
+app.get('/api/coaches', async (req, res) => {
+  try {
+    const coaches = await Coach.find({});
+    res.json(coaches);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching coaches" });
+  }
+});
+
+// DELETE COACH ROUTE
+app.delete('/api/coaches/:id', async (req, res) => {
+  try {
+    const deletedCoach = await Coach.findByIdAndDelete(req.params.id);
+    if (!deletedCoach) {
+      return res.status(404).json({ message: "Coach not found" });
+    }
+    console.log(`🗑️ Removed Coach: ${deletedCoach.name}`);
+    res.status(200).json({ message: "Coach removed successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting coach", error: err.message });
   }
 });
 
