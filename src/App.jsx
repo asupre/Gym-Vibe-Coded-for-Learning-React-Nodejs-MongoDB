@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
+import AdminDashboard from './AdminDashboard'; // <--- ADD THIS LINE!
 
 function App() {
   const [user, setUser] = useState(null);
@@ -16,11 +17,16 @@ function App() {
 
   return (
     <div>
-      {user ? (
-        <Dashboard user={user} onLogout={handleLogout} />
-      ) : (
-        <LandingPage onLoginSuccess={handleLoginSuccess} />
-      )}
+      
+{user ? (
+  user.role === 'admin' ? (
+    <AdminDashboard onLogout={handleLogout} />
+  ) : (
+    <Dashboard user={user} onLogout={handleLogout} />
+  )
+) : (
+  <LandingPage onLoginSuccess={handleLoginSuccess} />
+)}
     </div>
   );
 }

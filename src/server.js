@@ -91,6 +91,48 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Get all users (Admin only)
+app.get('/api/users', async (req, res) => {
+  try {
+    // This tells MongoDB: Find users where the role is NOT 'admin'
+const users = await User.find({ role: { $ne: 'admin' } });
+    // This sends the data as a clean JSON array
+    res.status(200).json(users); 
+  } catch (err) {
+    console.error("Admin Fetch Error:", err);
+    res.status(500).json({ message: "Error fetching users", error: err.message });
+  }
+});
+
+// Update user status
+app.patch('/api/users/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id, 
+      { status }, 
+      { new: true }
+    );
+    res.json({ message: `Status updated to ${status}`, user: updatedUser });
+  } catch (err) {
+    res.status(500).json({ message: "Error updating status" });
+  }
+});
+
+// DELETE ROUTE - Add this in server.js above app.listen
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    console.log(`🗑️ Deleted: ${deletedUser.name}`);
+    res.status(200).json({ message: "Member removed successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting user", error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
