@@ -7,17 +7,14 @@ import cors from 'cors';
 // Force IPv4 to bypass local DNS resolution issues common with ISPs
 dns.setDefaultResultOrder('ipv4first'); 
 
-
-
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// Change these lines in your server.js
+// --- MIDDLEWARE FIX ---
+// We need to set the limit to 10mb for images. 
+// (Removed the duplicate app.use(express.json()) that was causing conflicts)
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-
 
 const MONGO_URI = process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;
@@ -26,9 +23,7 @@ const PORT = process.env.PORT || 5000;
 mongoose.connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected: LongLong Gym Vault is Open"))
   .catch(err => {
-    console.error("❌ Connection Error Detail:");
-    console.error(err.message);
-    console.log("💡 Tip: If you're still stuck, try the Local MongoDB URI in your .env");
+    console.error("❌ Connection Error Detail:", err.message);
   });
 
 // --- PLAN SCHEMA ---
@@ -36,20 +31,22 @@ const planSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
   duration: { type: Number, required: true },
-  durationUnit: { type: String, default: 'month' } // day, week, month, year
+  durationUnit: { type: String, default: 'month' }
 }, { timestamps: true });
 
 const Plan = mongoose.model('Plan', planSchema);
 
-// User Schema - Matches your Gym Management System requirements
+// --- USER SCHEMA (FIXED) ---
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   plan: { type: String, default: 'Silver' },
   status: { type: String, default: 'pending' }, 
-  role: { type: String, default: 'user' }
-}, { timestamps: true }); // Automatically track when members join
+  role: { type: String, default: 'user' },
+  // 👇 THIS WAS MISSING! Adding this allows the image to be saved.
+  profileImage: { type: String, default: '' } 
+}, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 
@@ -57,27 +54,37 @@ const coachSchema = new mongoose.Schema({
   name: { type: String, required: true },
   specialty: { type: String, required: true },
   experience: { type: String },
-  image: { type: String, default: 'https://via.placeholder.com/150' }, // New Field
+  image: { type: String, default: 'https://via.placeholder.com/150' },
   status: { type: String, default: 'available' }
 }, { timestamps: true });
 
 const Coach = mongoose.model('Coach', coachSchema);
 
+// --- ROUTES ---
 
+// UPDATE USER PROFILE PICTURE
+app.patch('/api/users/:id/profile', async (req, res) => {
+  try {
+    const { profileImage } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id, 
+      { profileImage: profileImage }, 
+      { new: true }
+    );
+    res.json({ message: "Profile updated", user: updatedUser });
+  } catch (err) {
+    res.status(500).json({ message: "Error updating profile" });
+  }
+});
 
-// 1. REGISTER
+// REGISTER
 app.post('/api/register', async (req, res) => {
   try {
     const { name, email, password, plan } = req.body;
-    
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already exists!" });
-    }
+    if (existingUser) return res.status(400).json({ message: "Email already exists!" });
 
-    // Determine Role: If it's the specific admin email, make them admin
-    // REPLACE 'admin@gmail.com' WITH YOUR CHOSEN ADMIN EMAIL
+    // REPLACE 'admin@gmail.com' WITH YOUR ADMIN EMAIL
     const role = email === 'admin@gmail.com' ? 'admin' : 'member';
 
     const newUser = new User({ name, email, password, plan, role, status: 'pending' });
@@ -89,23 +96,15 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 2. LOGIN
+// LOGIN
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Find user by email
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Check Password (Simple comparison)
-    if (user.password !== password) {
-      return res.status(400).json({ message: "Invalid password" });
-    }
+    if (user.password !== password) return res.status(400).json({ message: "Invalid password" });
 
-    // Success! Send back the user info
     res.json({ 
       message: "Login successful", 
       user: {
@@ -115,7 +114,7 @@ app.post('/api/login', async (req, res) => {
         role: user.role,
         plan: user.plan,
         status: user.status,
-        profileImage: user.profileImage
+        profileImage: user.profileImage // Send image to frontend
       } 
     });
   } catch (err) {
@@ -123,115 +122,84 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Get all users (Admin only)
+// GET ALL USERS (ADMIN)
 app.get('/api/users', async (req, res) => {
   try {
-    // This tells MongoDB: Find users where the role is NOT 'admin'
-const users = await User.find({ role: { $ne: 'admin' } });
-    // This sends the data as a clean JSON array
+    const users = await User.find({ role: { $ne: 'admin' } });
     res.status(200).json(users); 
   } catch (err) {
-    console.error("Admin Fetch Error:", err);
     res.status(500).json({ message: "Error fetching users", error: err.message });
   }
 });
 
-// Update user status
+// UPDATE STATUS
 app.patch('/api/users/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id, 
-      { status }, 
-      { new: true }
-    );
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, { status }, { new: true });
     res.json({ message: `Status updated to ${status}`, user: updatedUser });
   } catch (err) {
     res.status(500).json({ message: "Error updating status" });
   }
 });
 
-// DELETE ROUTE - Add this in server.js above app.listen
+// DELETE USER
 app.delete('/api/users/:id', async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    console.log(`🗑️ Deleted: ${deletedUser.name}`);
+    if (!deletedUser) return res.status(404).json({ message: "User not found" });
     res.status(200).json({ message: "Member removed successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Error deleting user", error: err.message });
+    res.status(500).json({ message: "Error deleting user" });
   }
 });
 
-// 2. Add Coach Route
+// COACH ROUTES
 app.post('/api/coaches', async (req, res) => {
   try {
     const newCoach = new Coach(req.body);
     await newCoach.save();
-    res.json({ message: "Coach added successfully!", coach: newCoach });
-  } catch (err) {
-    res.status(500).json({ message: "Error adding coach" });
-  }
+    res.json({ message: "Coach added", coach: newCoach });
+  } catch (err) { res.status(500).json({ message: "Error adding coach" }); }
 });
 
-// 3. Get All Coaches Route
 app.get('/api/coaches', async (req, res) => {
   try {
     const coaches = await Coach.find({});
     res.json(coaches);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching coaches" });
-  }
+  } catch (err) { res.status(500).json({ message: "Error fetching coaches" }); }
 });
 
-// DELETE COACH ROUTE
 app.delete('/api/coaches/:id', async (req, res) => {
   try {
-    const deletedCoach = await Coach.findByIdAndDelete(req.params.id);
-    if (!deletedCoach) {
-      return res.status(404).json({ message: "Coach not found" });
-    }
-    console.log(`🗑️ Removed Coach: ${deletedCoach.name}`);
-    res.status(200).json({ message: "Coach removed successfully" });
-  } catch (err) {
-    res.status(500).json({ message: "Error deleting coach", error: err.message });
-  }
+    await Coach.findByIdAndDelete(req.params.id);
+    res.json({ message: "Coach removed" });
+  } catch (err) { res.status(500).json({ message: "Error deleting coach" }); }
 });
 
-// 1. Get All Plans (For Registration Page & Admin)
+// PLAN ROUTES
 app.get('/api/plans', async (req, res) => {
   try {
     const plans = await Plan.find({});
     res.json(plans);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching plans" });
-  }
+  } catch (err) { res.status(500).json({ message: "Error fetching plans" }); }
 });
 
-// 2. Create Plan (For Admin)
 app.post('/api/plans', async (req, res) => {
   try {
     const newPlan = new Plan(req.body);
     await newPlan.save();
     res.json(newPlan);
-  } catch (err) {
-    res.status(500).json({ message: "Error creating plan" });
-  }
+  } catch (err) { res.status(500).json({ message: "Error creating plan" }); }
 });
 
-// 3. Delete Plan (For Admin)
 app.delete('/api/plans/:id', async (req, res) => {
   try {
     await Plan.findByIdAndDelete(req.params.id);
     res.json({ message: "Plan deleted" });
-  } catch (err) {
-    res.status(500).json({ message: "Error deleting plan" });
-  }
+  } catch (err) { res.status(500).json({ message: "Error deleting plan" }); }
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-

@@ -43,17 +43,34 @@ const UserDashboard = ({ user, onLogout }) => {
 
 
   const handleProfileUpload = async (e) => {
-
     const file = e.target.files[0];
-
     if (!file) return;
-
+    
+    // 1. Convert to Base64
     const base64 = await convertToBase64(file);
-
+    
+    // 2. Show Immediate Preview
     setUserProfile(base64);
 
-    alert("Profile picture updated locally!");
+    // 3. Save to Database (So Admin sees it)
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/api/users/${user._id}/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileImage: base64 })
+      });
 
+      if (res.ok) {
+        // 4. Update Browser Memory (So it stays on refresh)
+        const updatedUser = { ...user, profileImage: base64 };
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        alert("Profile picture saved to server!");
+      } else {
+        alert("Failed to save to server.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
 
