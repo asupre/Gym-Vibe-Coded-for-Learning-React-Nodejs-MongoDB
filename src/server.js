@@ -17,6 +17,8 @@ app.use(express.json());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+
+
 const MONGO_URI = process.env.MONGO_URI;
 const PORT = process.env.PORT || 5000;
 
@@ -28,6 +30,16 @@ mongoose.connect(MONGO_URI)
     console.error(err.message);
     console.log("💡 Tip: If you're still stuck, try the Local MongoDB URI in your .env");
   });
+
+// --- PLAN SCHEMA ---
+const planSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  duration: { type: Number, required: true },
+  durationUnit: { type: String, default: 'month' } // day, week, month, year
+}, { timestamps: true });
+
+const Plan = mongoose.model('Plan', planSchema);
 
 // User Schema - Matches your Gym Management System requirements
 const userSchema = new mongoose.Schema({
@@ -53,57 +65,61 @@ const Coach = mongoose.model('Coach', coachSchema);
 
 
 
-// Registration Endpoint
+// 1. REGISTER
 app.post('/api/register', async (req, res) => {
   try {
     const { name, email, password, plan } = req.body;
     
+    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already taken!" });
+      return res.status(400).json({ message: "Email already exists!" });
     }
 
-    const newUser = new User({ 
-      name, 
-      email, 
-      password, // Note: For your final thesis, consider hashing this with bcrypt!
-      plan, 
-      status: 'pending' 
-    });
+    // Determine Role: If it's the specific admin email, make them admin
+    // REPLACE 'admin@gmail.com' WITH YOUR CHOSEN ADMIN EMAIL
+    const role = email === 'admin@gmail.com' ? 'admin' : 'member';
 
+    const newUser = new User({ name, email, password, plan, role, status: 'pending' });
     await newUser.save();
-    res.json({ message: "Registration successful! Please pay physically to activate." });
+    
+    res.status(201).json({ message: "User registered successfully", user: newUser });
   } catch (err) {
-    console.error("Registration error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error during registration" });
   }
 });
 
-
-// Login Route
+// 2. LOGIN
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Find the user by email
+    // Find user by email
     const user = await User.findOne({ email });
-    
-    // 2. Check if user exists and password matches
-    if (!user || user.password !== password) {
-      return res.status(401).json({ message: "Invalid email or password" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // 3. If match, send back the user data (except password)
-    res.status(200).json({
-      message: "Login successful",
+    // Check Password (Simple comparison)
+    if (user.password !== password) {
+      return res.status(400).json({ message: "Invalid password" });
+    }
+
+    // Success! Send back the user info
+    res.json({ 
+      message: "Login successful", 
       user: {
+        _id: user._id,
         name: user.name,
+        email: user.email,
         role: user.role,
-        status: user.status
-      }
+        plan: user.plan,
+        status: user.status,
+        profileImage: user.profileImage
+      } 
     });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+  } catch (err) {
+    res.status(500).json({ message: "Server error during login" });
   }
 });
 
@@ -181,6 +197,37 @@ app.delete('/api/coaches/:id', async (req, res) => {
     res.status(200).json({ message: "Coach removed successfully" });
   } catch (err) {
     res.status(500).json({ message: "Error deleting coach", error: err.message });
+  }
+});
+
+// 1. Get All Plans (For Registration Page & Admin)
+app.get('/api/plans', async (req, res) => {
+  try {
+    const plans = await Plan.find({});
+    res.json(plans);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching plans" });
+  }
+});
+
+// 2. Create Plan (For Admin)
+app.post('/api/plans', async (req, res) => {
+  try {
+    const newPlan = new Plan(req.body);
+    await newPlan.save();
+    res.json(newPlan);
+  } catch (err) {
+    res.status(500).json({ message: "Error creating plan" });
+  }
+});
+
+// 3. Delete Plan (For Admin)
+app.delete('/api/plans/:id', async (req, res) => {
+  try {
+    await Plan.findByIdAndDelete(req.params.id);
+    res.json({ message: "Plan deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting plan" });
   }
 });
 
