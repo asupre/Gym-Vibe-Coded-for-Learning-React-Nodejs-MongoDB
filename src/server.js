@@ -60,6 +60,17 @@ const coachSchema = new mongoose.Schema({
 
 const Coach = mongoose.model('Coach', coachSchema);
 
+// --- PRODUCT SCHEMA ---
+const productSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  category: { type: String, default: 'Supplement' }, // e.g., Protein, Gear, Drinks
+  stock: { type: Number, default: 0 },
+  image: { type: String, default: '' } // Base64 string
+}, { timestamps: true });
+
+const Product = mongoose.model('Product', productSchema);
+
 // --- ROUTES ---
 
 // UPDATE USER PROFILE PICTURE
@@ -198,6 +209,37 @@ app.delete('/api/plans/:id', async (req, res) => {
     await Plan.findByIdAndDelete(req.params.id);
     res.json({ message: "Plan deleted" });
   } catch (err) { res.status(500).json({ message: "Error deleting plan" }); }
+});
+
+// 1. Get all products
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await Product.find({});
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching products" });
+  }
+});
+
+// 2. Add a new product
+app.post('/api/products', async (req, res) => {
+  try {
+    const newProduct = new Product(req.body);
+    await newProduct.save();
+    res.json(newProduct);
+  } catch (err) {
+    res.status(500).json({ message: "Error adding product" });
+  }
+});
+
+// 3. Delete a product
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({ message: "Product removed" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting product" });
+  }
 });
 
 app.listen(PORT, () => {
