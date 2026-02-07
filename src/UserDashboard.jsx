@@ -5,6 +5,7 @@ const UserDashboard = ({ user, onLogout }) => {
   const [coaches, setCoaches] = useState([]);
   const [products, setProducts] = useState([]); // --- NEW: PRODUCTS STATE ---
   const [userProfile, setUserProfile] = useState(user.profileImage || '');
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   useEffect(() => {
     // Fetch Coaches
@@ -55,6 +56,49 @@ const UserDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleTicketUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const base64 = await convertToBase64(file);
+  
+  try {
+    const res = await fetch(`http://127.0.0.1:5000/api/users/${user._id}/ticket`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentTicket: base64 })
+    });
+    if (res.ok) {
+      alert("Ticket sent! Wait for Admin approval.");
+      setShowTicketModal(false);
+    }
+  } catch (err) { console.error(err); }
+};
+
+// 3. Create a helper function to check access
+const requestAccess = (tabName) => {
+  if (user.status === 'pending') {
+    setShowTicketModal(true);
+  } else {
+    setActiveTab(tabName);
+  }
+};
+
+// This function decides if the user is allowed to switch tabs
+const handleTabChange = (targetTab) => {
+  // 1. If the user is trying to go to Dashboard or Settings, ALWAYS allow it
+  if (targetTab === 'dashboard' || targetTab === 'settings') {
+    setActiveTab(targetTab);
+    return;
+  }
+
+  // 2. If they want restricted tabs (Trainers/Shop), check their status
+  if (user.status === 'pending') {
+    setShowTicketModal(true); // Block them and show the modal
+  } else {
+    setActiveTab(targetTab); // They are active, let them in!
+  }
+};
+
   return (
     <div className="flex min-h-screen bg-[#020617] text-white font-sans relative">
       
@@ -83,10 +127,10 @@ const UserDashboard = ({ user, onLogout }) => {
           <button onClick={() => setActiveTab('dashboard')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'dashboard' ? 'bg-orange-600 shadow-lg shadow-orange-900/20' : 'text-slate-400 hover:bg-slate-800'}`}>
             🏠 Dashboard
           </button>
-          <button onClick={() => setActiveTab('coaches')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'coaches' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>
+          <button onClick={() => handleTabChange('coaches')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'coaches' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>
             💪 Personal Trainers
           </button>
-          <button onClick={() => setActiveTab('supplements')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'supplements' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>
+          <button onClick={() => handleTabChange('supplements')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'supplements' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>
             💊 Supplement Shop
           </button>
           <button onClick={() => setActiveTab('settings')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'settings' ? 'bg-orange-600 shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}>
@@ -109,7 +153,7 @@ const UserDashboard = ({ user, onLogout }) => {
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div onClick={() => setActiveTab('coaches')} className="group relative h-80 rounded-[40px] overflow-hidden border border-slate-800 cursor-pointer shadow-2xl hover:border-orange-500/50 transition-all duration-500">
+              <div onClick={() => requestAccess('coaches')} className="group relative h-80 rounded-[40px] overflow-hidden border border-slate-800 cursor-pointer shadow-2xl hover:border-orange-500/50 transition-all duration-500">
                 <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800" className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-110 transition duration-700" alt="Coaches" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                 <div className="absolute bottom-8 left-8 right-8">
@@ -119,7 +163,7 @@ const UserDashboard = ({ user, onLogout }) => {
                 </div>
               </div>
 
-              <div onClick={() => setActiveTab('supplements')} className="group relative h-80 rounded-[40px] overflow-hidden border border-slate-800 cursor-pointer shadow-2xl hover:border-orange-500/50 transition-all duration-500">
+              <div onClick={() => requestAccess('supplements')} className="group relative h-80 rounded-[40px] overflow-hidden border border-slate-800 cursor-pointer shadow-2xl hover:border-orange-500/50 transition-all duration-500">
                 <img src="https://images.unsplash.com/photo-1593095191071-82b0fdd67611?w=800" className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:scale-110 transition duration-700" alt="Supplements" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                 <div className="absolute bottom-8 left-8 right-8">
@@ -232,9 +276,31 @@ const UserDashboard = ({ user, onLogout }) => {
              </div>
           </div>
         )}
+        {showTicketModal && (
+  <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+    <div className="bg-white text-slate-900 p-10 rounded-[40px] max-w-md w-full shadow-2xl text-center">
+      <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🎫</div>
+      <h2 className="text-3xl font-black uppercase mb-2">Access Locked</h2>
+      <p className="text-slate-500 mb-8 font-medium">To access Trainers and the Shop, please upload a photo of your Gym Ticket or Receipt for verification.</p>
+      
+      <input 
+        type="file" 
+        accept="image/*" 
+        className="hidden" 
+        id="ticket-upload" 
+        onChange={handleTicketUpload}
+      />
+      <label htmlFor="ticket-upload" className="block w-full bg-orange-600 text-white font-black py-4 rounded-2xl cursor-pointer hover:bg-orange-700 transition mb-4 uppercase tracking-widest">
+        Select Ticket Photo
+      </label>
+      <button onClick={() => setShowTicketModal(false)} className="text-slate-400 font-bold text-sm uppercase hover:text-slate-900">Close</button>
+    </div>
+  </div>
+)}
       </main>
     </div>
   );
 };
+
 
 export default UserDashboard;

@@ -341,17 +341,51 @@ const handleDeleteProduct = async (id) => {
      {/* --- SIDE PANELS & MODALS (ALL INSIDE THE RETURN) --- */}
       
       {selectedUser && (
-        <aside className="fixed right-0 top-0 w-80 h-full bg-slate-900 border-l border-slate-800 p-8 shadow-2xl animate-in slide-in-from-right duration-300 z-30">
-          <button onClick={() => setSelectedUser(null)} className="text-slate-500 hover:text-white mb-6 font-bold flex items-center gap-2">✕ Close Profile</button>
-          <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-orange-500 bg-slate-800 mx-auto mb-6">{selectedUser.profileImage ? <img src={selectedUser.profileImage} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-4xl font-black text-orange-500">{selectedUser.name.charAt(0)}</div>}</div>
-          <h3 className="text-2xl font-black mb-1 text-center">{selectedUser.name}</h3>
-          <p className="text-slate-500 text-sm mb-6 text-center">{selectedUser.email}</p>
-          <div className="space-y-4">
-            <div className="bg-slate-800/50 p-4 rounded-xl"><p className="text-[10px] text-slate-500 uppercase font-black mb-1">Membership Plan</p><p className="font-bold text-orange-500">{selectedUser.plan}</p></div>
-            <div className="bg-slate-800/50 p-4 rounded-xl"><p className="text-[10px] text-slate-500 uppercase font-black mb-1">Join Date</p><p className="font-bold text-white">{new Date(selectedUser.createdAt).toLocaleDateString()}</p></div>
+  <aside className="fixed right-0 top-0 w-80 h-full bg-slate-900 border-l border-slate-800 p-8 shadow-2xl animate-in slide-in-from-right duration-300 z-30 overflow-y-auto">
+    <button onClick={() => setSelectedUser(null)} className="text-slate-500 hover:text-white mb-6 font-bold flex items-center gap-2">✕ Close</button>
+    
+    <p className="text-[10px] font-black uppercase text-orange-500 tracking-[3px] mb-6 text-center">Verification Vault</p>
+    
+    <div className="space-y-6">
+      {/* 1. REPLACE TEXT INFO WITH THE TICKET IMAGE */}
+      <div className="bg-black/40 border border-slate-800 rounded-2xl p-2 overflow-hidden">
+        <p className="text-[10px] text-slate-500 uppercase font-black mb-2 px-2">Uploaded Payment Ticket</p>
+        {selectedUser.paymentTicket ? (
+          <img 
+            src={selectedUser.paymentTicket} 
+            className="w-full h-auto rounded-xl shadow-2xl border border-slate-700 hover:scale-105 transition cursor-zoom-in" 
+            alt="Ticket" 
+            onClick={() => window.open(selectedUser.paymentTicket)} 
+          />
+        ) : (
+          <div className="h-48 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-xl">
+             <span className="text-2xl mb-2">🚫</span>
+             <p className="text-[10px] font-bold uppercase italic">No Ticket Uploaded</p>
           </div>
-        </aside>
+        )}
+      </div>
+
+      {/* 2. KEEP JOIN DATE */}
+      <div className="bg-slate-800/50 p-4 rounded-xl">
+        <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Join Date</p>
+        <p className="font-bold text-white text-sm">{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
+      </div>
+
+      {/* 3. VERIFICATION ACTIONS */}
+      {selectedUser.status === 'pending' && (
+        <button 
+          onClick={() => {
+            toggleStatus(selectedUser._id, 'pending'); // This calls your existing toggleStatus to make them 'active'
+            setSelectedUser(null);
+          }}
+          className="w-full bg-green-600 text-white font-black py-4 rounded-xl uppercase text-xs tracking-widest hover:bg-green-500 shadow-lg shadow-green-900/20"
+        >
+          Verify & Activate
+        </button>
       )}
+    </div>
+  </aside>
+)}
 
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-slate-900">

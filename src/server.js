@@ -45,7 +45,8 @@ const userSchema = new mongoose.Schema({
   status: { type: String, default: 'pending' }, 
   role: { type: String, default: 'user' },
   // 👇 THIS WAS MISSING! Adding this allows the image to be saved.
-  profileImage: { type: String, default: '' } 
+  profileImage: { type: String, default: '' },
+  paymentTicket: { type: String, default: '' }
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
@@ -239,6 +240,20 @@ app.delete('/api/products/:id', async (req, res) => {
     res.json({ message: "Product removed" });
   } catch (err) {
     res.status(500).json({ message: "Error deleting product" });
+  }
+});
+
+app.patch('/api/users/:id/ticket', async (req, res) => {
+  try {
+    const { paymentTicket } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id, 
+      { paymentTicket: paymentTicket }, 
+      { new: true }
+    );
+    res.json({ message: "Ticket uploaded", user: updatedUser });
+  } catch (err) {
+    res.status(500).json({ message: "Error uploading ticket" });
   }
 });
 
