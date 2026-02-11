@@ -67,9 +67,13 @@ const User = mongoose.model('User', userSchema);
 const coachSchema = new mongoose.Schema({
   name: { type: String, required: true },
   specialty: { type: String, required: true },
-  experience: { type: String },
-  image: { type: String, default: 'https://via.placeholder.com/150' },
-  status: { type: String, default: 'available' }
+  image: { type: String, default: '' },
+  status: { type: String, default: 'Available' },
+  // New Availability structure
+  availability: [{
+    day: String, // e.g., "Monday"
+    hours: String // e.g., "8:00 AM - 5:00 PM"
+  }]
 }, { timestamps: true });
 
 const Coach = mongoose.model('Coach', coachSchema);
@@ -298,6 +302,16 @@ app.delete('/api/exercises/:id', async (req, res) => {
     res.json({ message: "Exercise removed" });
   } catch (err) {
     res.status(500).json({ message: "Error deleting exercise" });
+  }
+});
+
+// --- ADD EDIT COACH ROUTE ---
+app.put('/api/coaches/:id', async (req, res) => {
+  try {
+    const updatedCoach = await Coach.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updatedCoach);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating coach" });
   }
 });
 

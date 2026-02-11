@@ -23,7 +23,14 @@ const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'S
   // Coach States
   const [coaches, setCoaches] = useState([]);
   const [showCoachModal, setShowCoachModal] = useState(false);
-  const [newCoach, setNewCoach] = useState({ name: '', specialty: '', experience: '', image: '' });
+  const [isEditingCoach, setIsEditingCoach] = useState(false);
+const [currentCoachId, setCurrentCoachId] = useState(null);
+const [newCoach, setNewCoach] = useState({ 
+  name: '', 
+  specialty: '', 
+  image: '', 
+  availability: [] 
+});
 
   // Plan States
   const [plans, setPlans] = useState([]);
@@ -168,6 +175,60 @@ const handleDeleteProduct = async (id) => {
     }
   };
 
+  const addAvailabilityRow = () => {
+  setNewCoach({
+    ...newCoach,
+    availability: [...newCoach.availability, { day: 'Monday', hours: '' }]
+  });
+};
+// Update availability row
+const updateAvailability = (index, field, value) => {
+  const updatedSched = [...newCoach.availability];
+  updatedSched[index][field] = value;
+  setNewCoach({ ...newCoach, availability: updatedSched });
+};
+
+const removeAvailability = (index) => {
+  const updatedSched = newCoach.availability.filter((_, i) => i !== index);
+  setNewCoach({ ...newCoach, availability: updatedSched });
+};
+
+// --- OPEN MODAL FOR EDITING ---
+const openEditModal = (coach) => {
+  setIsEditingCoach(true);
+  setCurrentCoachId(coach._id);
+  setNewCoach({
+    name: coach.name,
+    specialty: coach.specialty,
+    image: coach.image,
+    availability: coach.availability || [] // If they have no schedule yet, start empty
+  });
+  setShowCoachModal(true);
+};
+
+// --- UPDATE COACH FUNCTION ---
+const handleUpdateCoach = async (e) => {
+  e.preventDefault();
+  try {
+    const res = await fetch(`http://127.0.0.1:5000/api/coaches/${currentCoachId}`, {
+      method: 'PUT', // We use PUT to update
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCoach)
+    });
+    
+    if (res.ok) {
+      const updatedData = await res.json();
+      // Update the coaches list on screen immediately
+      setCoaches(coaches.map(c => c._id === currentCoachId ? updatedData : c));
+      setShowCoachModal(false);
+      setIsEditingCoach(false);
+      alert("Coach schedule updated!");
+    }
+  } catch (err) {
+    console.error("Update Error:", err);
+  }
+};
+
   // --- EXERCISE FUNCTIONS ---
 // --- EXERCISE SAVE FUNCTION ---
 const handleAddExercise = async (e) => {
@@ -307,17 +368,49 @@ const handleAddExercise = async (e) => {
     <div className="animate-in fade-in duration-500">
       <header className="mb-8 flex justify-between items-center">
         <div><h2 className="text-3xl font-black uppercase tracking-tight text-white">Gym Coaches</h2><p className="text-slate-500 font-medium">Manage trainers.</p></div>
-        <button onClick={() => setShowCoachModal(true)} className="bg-orange-600 px-6 py-3 rounded-xl font-black text-white uppercase text-xs">+ Add New Coach</button>
+       <button 
+  onClick={() => {
+    setIsEditingCoach(false); // Make sure we are NOT in edit mode
+    setNewCoach({ name: '', specialty: '', image: '', availability: [] }); // Reset form
+    setShowCoachModal(true);
+  }} 
+  className="bg-orange-600 px-6 py-3 rounded-xl font-black text-white uppercase text-xs"
+>
+  + Add New Coach
+</button>
       </header>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {coaches.map(coach => (
-          <div key={coach._id} className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group">
-            <div className="w-16 h-16 bg-slate-800 rounded-2xl mb-4 overflow-hidden border border-slate-700"><img src={coach.image || 'https://via.placeholder.com/150'} alt={coach.name} className="w-full h-full object-cover" /></div>
-            <h3 className="text-xl font-bold mb-1 text-white">{coach.name}</h3>
-            <p className="text-orange-500 font-bold text-sm mb-4 uppercase tracking-wider">{coach.specialty}</p>
-            <button onClick={() => handleDeleteCoach(coach._id)} className="mt-6 w-full py-2 bg-red-600/10 text-red-500 text-[10px] font-black uppercase rounded-lg hover:bg-red-600 hover:text-white transition">Remove Coach</button>
-          </div>
-        ))}
+  <div key={coach._id} className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative group">
+    <div className="w-16 h-16 bg-slate-800 rounded-2xl mb-4 overflow-hidden border border-slate-700">
+      <img src={coach.image || 'https://via.placeholder.com/150'} alt={coach.name} className="w-full h-full object-cover" />
+    </div>
+    <h3 className="text-xl font-bold mb-1 text-white">{coach.name}</h3>
+    <p className="text-orange-500 font-bold text-xs mb-4 uppercase tracking-wider">{coach.specialty}</p>
+    
+    {/* Display a mini version of the schedule */}
+    <div className="space-y-1 mb-6">
+      {coach.availability?.map((s, i) => (
+        <p key={i} className="text-[9px] text-slate-500 font-bold uppercase">{s.day}: {s.hours}</p>
+      ))}
+    </div>
+
+    <div className="flex gap-2">
+      <button 
+        onClick={() => openEditModal(coach)}
+        className="flex-1 py-2 bg-slate-800 text-white text-[10px] font-black uppercase rounded-lg hover:bg-orange-600 transition"
+      >
+        Edit Schedule
+      </button>
+      <button 
+        onClick={() => handleDeleteCoach(coach._id)} 
+        className="px-3 py-2 bg-red-600/10 text-red-500 text-[10px] font-black uppercase rounded-lg hover:bg-red-600 hover:text-white transition"
+      >
+        🗑️
+      </button>
+    </div>
+  </div>
+))}
       </div>
     </div>
   )}
@@ -569,19 +662,53 @@ const handleAddExercise = async (e) => {
       )}
 
       {showCoachModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
-          <form onSubmit={handleAddCoach} className="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl">
-            <h2 className="text-2xl font-black tracking-tight mb-6 text-slate-900">Add New Gym Coach</h2>
-            <div className="space-y-4">
-              <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none text-slate-900" placeholder="Coach Name" value={newCoach.name} onChange={(e) => setNewCoach({...newCoach, name: e.target.value})} />
-              <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none text-slate-900" placeholder="Specialty" value={newCoach.specialty} onChange={(e) => setNewCoach({...newCoach, specialty: e.target.value})} />
-              <input className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none text-slate-900" placeholder="Experience" value={newCoach.experience} onChange={(e) => setNewCoach({...newCoach, experience: e.target.value})} />
-              <input type="file" accept="image/*" className="w-full mt-1 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:bg-orange-600 file:text-white" onChange={async (e) => { const file = e.target.files[0]; const base64 = await convertToBase64(file); setNewCoach({...newCoach, image: base64}); }} />
-            </div>
-            <div className="flex gap-3 mt-8"><button type="button" onClick={() => setShowCoachModal(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">Cancel</button><button type="submit" className="flex-1 py-3 font-bold bg-orange-600 text-white rounded-xl hover:bg-orange-700">Save Coach</button></div>
-          </form>
+  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
+    <form onSubmit={isEditingCoach ? handleUpdateCoach : handleAddCoach} className="bg-white p-8 rounded-[40px] max-w-lg w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+      <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic">{isEditingCoach ? 'Edit Coach' : 'Add New Coach'}</h2>
+      
+      <div className="space-y-4">
+        <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none font-bold" placeholder="Coach Name" value={newCoach.name} onChange={(e) => setNewCoach({...newCoach, name: e.target.value})} />
+        <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none font-bold" placeholder="Specialty (e.g. HIIT, Yoga)" value={newCoach.specialty} onChange={(e) => setNewCoach({...newCoach, specialty: e.target.value})} />
+        
+        {/* AVAILABILITY SECTION */}
+        <div className="pt-4 border-t border-slate-100">
+          <div className="flex justify-between items-center mb-4">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Weekly Schedule</label>
+            <button type="button" onClick={addAvailabilityRow} className="text-orange-600 font-black text-[10px] uppercase hover:underline">+ Add Day</button>
+          </div>
+          
+          <div className="space-y-3">
+            {newCoach.availability.map((sched, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <select 
+                  className="bg-slate-100 rounded-lg p-2 text-xs font-bold outline-none"
+                  value={sched.day}
+                  onChange={(e) => updateAvailability(index, 'day', e.target.value)}
+                >
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <input 
+                  placeholder="8:00 AM - 12:00 PM" 
+                  className="flex-1 bg-slate-100 rounded-lg p-2 text-xs outline-none"
+                  value={sched.hours}
+                  onChange={(e) => updateAvailability(index, 'hours', e.target.value)}
+                />
+                <button type="button" onClick={() => removeAvailability(index)} className="text-red-500 text-xs px-2">✕</button>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+
+        <input type="file" accept="image/*" className="w-full mt-4 text-xs" onChange={async (e) => { const file = e.target.files[0]; if(file) { const base64 = await convertToBase64(file); setNewCoach({...newCoach, image: base64}); } }} />
+      </div>
+
+      <div className="flex gap-3 mt-8">
+        <button type="button" onClick={() => setShowCoachModal(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">Cancel</button>
+        <button type="submit" className="flex-1 py-3 font-bold bg-orange-600 text-white rounded-xl hover:bg-orange-700 uppercase text-xs tracking-widest">Save Trainer</button>
+      </div>
+    </form>
+  </div>
+)}
 
       {showPlanModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
