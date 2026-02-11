@@ -95,11 +95,11 @@ const UserDashboard = ({ user, onLogout }) => {
           <h1 className="text-xl font-black text-orange-500 tracking-tighter italic">LONGLONG <span className="text-white">GYM</span></h1>
         </div>
         <nav className="flex-1 space-y-1">
-          <button onClick={() => handleTabChange('dashboard')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'dashboard' ? 'bg-orange-600 shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}>🏠 Dashboard</button>
-          <button onClick={() => handleTabChange('coaches')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'coaches' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>💪 Personal Trainers</button>
-          <button onClick={() => handleTabChange('supplements')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'supplements' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>💊 Supplement Shop</button>
-          <button onClick={() => handleTabChange('exercises')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'exercises' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>🏋️ Workout Vault</button>
-          <button onClick={() => handleTabChange('settings')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'settings' ? 'bg-orange-600 shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}>⚙️ Settings</button>
+          <button onClick={() => handleTabChange('dashboard')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'dashboard' ? 'bg-orange-600 shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}> Dashboard</button>
+          <button onClick={() => handleTabChange('coaches')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'coaches' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}> Personal Trainers</button>
+          <button onClick={() => handleTabChange('supplements')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'supplements' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}> Supplement Shop</button>
+          <button onClick={() => handleTabChange('exercises')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'exercises' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}> Workout Vault</button>
+          <button onClick={() => handleTabChange('settings')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition flex items-center gap-3 ${activeTab === 'settings' ? 'bg-orange-600 shadow-lg' : 'text-slate-400 hover:bg-slate-800'}`}> Settings</button>
         </nav>
         <button onClick={onLogout} className="bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white px-4 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition mt-auto">Logout System</button>
       </div>
