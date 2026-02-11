@@ -7,6 +7,8 @@ const AdminDashboard = ({ onLogout }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+
+
   
 // Product States
 const [products, setProducts] = useState([]);
@@ -27,6 +29,13 @@ const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'S
   const [plans, setPlans] = useState([]);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [newPlan, setNewPlan] = useState({ name: '', price: '', duration: '1', durationUnit: 'month' });
+
+  const [exercises, setExercises] = useState([]);
+const [showExerciseModal, setShowExerciseModal] = useState(false);
+const [newExercise, setNewExercise] = useState({ name: '', muscleGroup: 'Chest', equipment: '', difficulty: 'Beginner', instructions: '', image: '' });
+const [selectedFolder, setSelectedFolder] = useState(null); // null means show all folders
+const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+const [viewingExercise, setViewingExercise] = useState(null);
 
   // --- FETCH DATA ---
   useEffect(() => {
@@ -49,6 +58,8 @@ const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'S
       .catch(err => console.log("Plans route not ready yet"));
 
       fetch('http://127.0.0.1:5000/api/products').then(res => res.json()).then(setProducts).catch(() => {});
+
+      fetch('http://127.0.0.1:5000/api/exercises').then(res => res.json()).then(setExercises);
       
     localStorage.setItem('adminTab', activeTab);
   }, [activeTab]);
@@ -157,6 +168,43 @@ const handleDeleteProduct = async (id) => {
     }
   };
 
+  // --- EXERCISE FUNCTIONS ---
+// --- EXERCISE SAVE FUNCTION ---
+const handleAddExercise = async (e) => {
+  e.preventDefault(); // Prevents the page from refreshing
+  try {
+    const res = await fetch('http://127.0.0.1:5000/api/exercises', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newExercise)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      // 1. Add the new exercise to the list on your screen
+      setExercises([...exercises, data]); 
+      // 2. Close the modal window
+      setShowExerciseModal(false); 
+      // 3. Reset the form so it's empty for next time
+      setNewExercise({ 
+        name: '', 
+        muscleGroup: 'Chest', 
+        equipment: '', 
+        difficulty: 'Beginner', 
+        instructions: '', 
+        image: '' 
+      });
+      alert("Exercise added to the Vault successfully!");
+    } else {
+      const errorData = await res.json();
+      alert("Error: " + errorData.message);
+    }
+  } catch (err) {
+    console.error("Save Error:", err);
+    alert("Could not connect to the server.");
+  }
+};
+
   // Filter & Sort Logic
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -180,7 +228,11 @@ const handleDeleteProduct = async (id) => {
           <button onClick={() => setActiveTab('coaches')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition ${activeTab === 'coaches' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}> Coaches</button>
           <button onClick={() => setActiveTab('plans')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition ${activeTab === 'plans' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}> Plans</button>
           <button onClick={() => setActiveTab('inventory')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition ${activeTab === 'inventory' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>
+            
    Inventory
+</button>
+<button onClick={() => setActiveTab('exercises')} className={`w-full text-left px-4 py-3 rounded-xl font-bold transition ${activeTab === 'exercises' ? 'bg-orange-600' : 'text-slate-400 hover:bg-slate-800'}`}>
+   Exercises
 </button>
         </nav>
         <button onClick={onLogout} className="bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white px-4 py-3 rounded-xl font-bold transition">Logout</button>
@@ -289,6 +341,16 @@ const handleDeleteProduct = async (id) => {
                 <td className="p-5 text-slate-400">{u.plan}</td>
                 <td className="p-5 text-center"><span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${u.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{u.status}</span></td>
                 <td className="p-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                  <button 
+    onClick={() => {
+      
+        handleDelete(u._id, u.name);
+      
+    }} 
+    className="text-[10px] bg-red-600/10 text-red-500 border border-red-600/20 px-4 py-2 rounded-lg font-black hover:bg-red-600 hover:text-white transition uppercase"
+  >
+    Delete
+  </button>
                   <button onClick={() => toggleStatus(u._id, u.status)} className="text-[10px] bg-white text-black px-4 py-2 rounded-lg font-black uppercase tracking-widest">{u.status === 'pending' ? 'Approve' : 'Suspend'}</button>
                 </td>
               </tr>
@@ -335,6 +397,112 @@ const handleDeleteProduct = async (id) => {
       </div>
     </div>
   )}
+
+  {activeTab === 'exercises' && (
+  <div className="animate-in fade-in duration-500">
+    <header className="mb-8 flex justify-between items-center text-white">
+      <div>
+        <h2 className="text-3xl font-black uppercase tracking-tight">
+          {selectedFolder ? `${selectedFolder} Folder` : "Exercise Vault"}
+        </h2>
+        <p className="text-slate-500 font-medium text-[10px] uppercase">
+          {selectedFolder ? `Managing ${selectedFolder} movements` : "Select a muscle group to manage"}
+        </p>
+      </div>
+      <div className="flex gap-4">
+        {selectedFolder && (
+          <button onClick={() => setSelectedFolder(null)} className="px-6 py-3 rounded-xl font-black bg-slate-800 text-white uppercase text-xs">
+            ← Back to Folders
+          </button>
+        )}
+        <button onClick={() => setShowExerciseModal(true)} className="bg-orange-600 px-6 py-3 rounded-xl font-black hover:bg-orange-500 shadow-lg text-white uppercase text-xs">
+          + Add Exercise
+        </button>
+      </div>
+    </header>
+
+    {/* --- FOLDER VIEW (Show if no folder is selected) --- */}
+    {!selectedFolder ? (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {muscleGroups.map((group) => (
+          <div 
+            key={group} 
+            onClick={() => setSelectedFolder(group)}
+            className="bg-slate-900 border border-slate-800 p-8 rounded-[40px] cursor-pointer group hover:border-orange-500 transition-all duration-500 relative overflow-hidden"
+          >
+            <div className="relative z-10">
+              <span className="text-4xl mb-4 block">📁</span>
+              <h3 className="text-2xl font-black text-white uppercase italic">{group}</h3>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">
+                {exercises.filter(ex => ex.muscleGroup === group).length} Exercises
+              </p>
+            </div>
+            {/* Background Glow Effect */}
+            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-orange-600/10 rounded-full blur-3xl group-hover:bg-orange-600/20 transition-all"></div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      /* --- EXERCISE LIST VIEW (Show inside the folder) --- */
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-right-4 duration-500">
+        {exercises
+          .filter(ex => ex.muscleGroup === selectedFolder)
+          .map(ex => (
+            <div 
+  key={ex._id} 
+  className="bg-slate-900 border border-slate-800 p-6 rounded-[32px] hover:border-orange-500 transition group shadow-2xl flex flex-col"
+>
+  {/* TOP: CLICKABLE IMAGE AREA */}
+  <div 
+    onClick={() => setViewingExercise(ex)} 
+    className="w-full h-48 bg-slate-800 rounded-2xl mb-4 overflow-hidden border border-slate-700 cursor-zoom-in relative"
+  >
+    {ex.image ? (
+      <img src={ex.image} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt={ex.name} />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-slate-600 font-black italic">NO GIF/IMAGE</div>
+    )}
+    {/* Hover Overlay */}
+    <div className="absolute inset-0 bg-orange-600/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+      <span className="text-white font-black text-[10px] uppercase tracking-widest bg-slate-950/80 px-4 py-2 rounded-full">🔍 Tap to Zoom</span>
+    </div>
+  </div>
+
+  {/* MIDDLE: INFO */}
+  <div className="flex-1">
+    <h3 className="text-xl font-black text-white mb-1 uppercase tracking-tight italic">{ex.name}</h3>
+    <p className="text-orange-500 text-[10px] font-black uppercase tracking-[3px] mb-4">{ex.difficulty}</p>
+  </div>
+  
+  {/* BOTTOM: ACTIONS (Row of buttons) */}
+  <div className="flex gap-2 mt-auto">
+    <button 
+      onClick={() => setViewingExercise(ex)}
+      className="flex-1 py-3 bg-white text-black rounded-xl font-black text-[10px] uppercase hover:bg-orange-600 hover:text-white transition shadow-xl"
+    >
+      View Focus
+    </button>
+
+    {/* Only keep this part in AdminDashboard.jsx */}
+    <button 
+      onClick={async (e) => {
+        e.stopPropagation(); // Prevents opening the modal while deleting
+        if(window.confirm(`Remove ${ex.name} from the vault?`)) {
+          await fetch(`http://127.0.0.1:5000/api/exercises/${ex._id}`, { method: 'DELETE' });
+          setExercises(exercises.filter(e => e._id !== ex._id));
+        }
+      }}
+      className="px-4 py-3 bg-red-600/10 text-red-500 rounded-xl font-black text-[10px] uppercase hover:bg-red-600 hover:text-white transition"
+    >
+      🗑️
+    </button>
+  </div>
+</div>
+          ))}
+      </div>
+    )}
+  </div>
+)}
 
 </main>
 
@@ -485,6 +653,143 @@ const handleDeleteProduct = async (id) => {
           </form>
         </div>
       )}
+
+      {/* --- ADD EXERCISE MODAL --- */}
+      {showExerciseModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
+          <form onSubmit={handleAddExercise} className="bg-white p-8 rounded-[40px] max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+            <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic text-slate-900">New Vault Exercise</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Exercise Name</label>
+                <input 
+                  required 
+                  className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-slate-900" 
+                  placeholder="e.g. Bench Press" 
+                  value={newExercise.name} 
+                  onChange={(e) => setNewExercise({...newExercise, name: e.target.value})} 
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Muscle Group</label>
+                  <select 
+                    className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-slate-900"
+                    value={newExercise.muscleGroup}
+                    onChange={(e) => setNewExercise({...newExercise, muscleGroup: e.target.value})}
+                  >
+                    <option value="Chest">Chest</option>
+                    <option value="Back">Back</option>
+                    <option value="Legs">Legs</option>
+                    <option value="Shoulders">Shoulders</option>
+                    <option value="Arms">Arms</option>
+                    <option value="Core">Core/Abs</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Difficulty</label>
+                  <select 
+                    className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-slate-900"
+                    value={newExercise.difficulty}
+                    onChange={(e) => setNewExercise({...newExercise, difficulty: e.target.value})}
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Instructions</label>
+                <textarea 
+                  className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none text-slate-900 text-sm h-24 resize-none" 
+                  placeholder="Step by step guide..." 
+                  value={newExercise.instructions} 
+                  onChange={(e) => setNewExercise({...newExercise, instructions: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Exercise GIF / Image</label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="w-full mt-1 text-xs file:bg-orange-600 file:border-none file:px-4 file:py-2 file:rounded-lg file:text-white file:font-black cursor-pointer"
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const base64 = await convertToBase64(file);
+                      setNewExercise({...newExercise, image: base64});
+                    }
+                  }} 
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button type="button" onClick={() => setShowExerciseModal(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">Cancel</button>
+              <button type="submit" className="flex-1 py-3 font-bold bg-orange-600 text-white rounded-xl hover:bg-orange-700 shadow-lg">Save to Vault</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* --- EXERCISE VIEW MODAL (BIGGER VERSION) --- */}
+{viewingExercise && (
+  <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in zoom-in duration-300">
+    
+    {/* Close Button */}
+    <button 
+      onClick={() => setViewingExercise(null)} 
+      className="absolute top-8 right-8 text-white/50 hover:text-orange-500 transition-all text-4xl z-[210]"
+    >
+      ✕
+    </button>
+
+    <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      
+      {/* LEFT: BIG IMAGE/GIF */}
+      <div className="rounded-[40px] overflow-hidden border-4 border-slate-800 shadow-[0_0_50px_rgba(234,88,12,0.2)] bg-slate-900">
+        {viewingExercise.image ? (
+          <img src={viewingExercise.image} className="w-full h-auto object-contain" alt={viewingExercise.name} />
+        ) : (
+          <div className="aspect-video flex items-center justify-center text-slate-700 font-black">NO MEDIA</div>
+        )}
+      </div>
+
+      {/* RIGHT: DETAILS */}
+      <div className="text-white">
+        <div className="mb-8">
+          <p className="text-orange-500 font-black text-xs uppercase tracking-[4px] mb-2">Technique Guide</p>
+          <h2 className="text-6xl font-black uppercase italic tracking-tighter leading-none mb-4">
+            {viewingExercise.name}
+          </h2>
+          <div className="flex gap-3">
+             <span className="bg-slate-800 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-700">{viewingExercise.muscleGroup}</span>
+             <span className="bg-orange-600 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{viewingExercise.difficulty}</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[40px]">
+          <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 mb-4">How to Perform:</h4>
+          <p className="text-lg text-slate-300 leading-relaxed font-medium italic">
+            {viewingExercise.instructions || "Contact your Personal Trainer for specific coaching cues and form correction for this movement."}
+          </p>
+        </div>
+
+        <button 
+          onClick={() => setViewingExercise(null)}
+          className="mt-10 px-10 py-4 bg-white text-black font-black uppercase rounded-2xl hover:bg-orange-600 hover:text-white transition-all shadow-2xl"
+        >
+          Got it, let's work!
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

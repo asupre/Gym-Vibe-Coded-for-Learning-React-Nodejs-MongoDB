@@ -26,6 +26,19 @@ mongoose.connect(MONGO_URI)
     console.error("❌ Connection Error Detail:", err.message);
   });
 
+
+  // --- EXERCISE SCHEMA ---
+const exerciseSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  muscleGroup: { type: String, required: true }, // e.g., Chest, Legs, Back
+  equipment: { type: String, default: 'None' },
+  difficulty: { type: String, default: 'Beginner' },
+  instructions: { type: String },
+  image: { type: String, default: '' } // Base64 for GIFs or Photos
+}, { timestamps: true });
+
+const Exercise = mongoose.model('Exercise', exerciseSchema);
+
 // --- PLAN SCHEMA ---
 const planSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -254,6 +267,37 @@ app.patch('/api/users/:id/ticket', async (req, res) => {
     res.json({ message: "Ticket uploaded", user: updatedUser });
   } catch (err) {
     res.status(500).json({ message: "Error uploading ticket" });
+  }
+});
+
+// 1. Get all exercises
+app.get('/api/exercises', async (req, res) => {
+  try {
+    const exercises = await Exercise.find({});
+    res.json(exercises);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching exercises" });
+  }
+});
+
+// 2. Add a new exercise (Admin)
+app.post('/api/exercises', async (req, res) => {
+  try {
+    const newExercise = new Exercise(req.body);
+    await newExercise.save();
+    res.json(newExercise);
+  } catch (err) {
+    res.status(500).json({ message: "Error adding exercise" });
+  }
+});
+
+// 3. Delete an exercise (Admin)
+app.delete('/api/exercises/:id', async (req, res) => {
+  try {
+    await Exercise.findByIdAndDelete(req.params.id);
+    res.json({ message: "Exercise removed" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting exercise" });
   }
 });
 
