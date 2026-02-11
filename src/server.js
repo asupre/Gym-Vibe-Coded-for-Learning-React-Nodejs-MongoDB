@@ -68,11 +68,9 @@ const coachSchema = new mongoose.Schema({
   name: { type: String, required: true },
   specialty: { type: String, required: true },
   image: { type: String, default: '' },
-  status: { type: String, default: 'Available' },
-  // New Availability structure
-  availability: [{
-    day: String, // e.g., "Monday"
-    hours: String // e.g., "8:00 AM - 5:00 PM"
+  availableDates: [{
+    date: String,  // "2026-02-05"
+    hours: String  // "08:00 AM - 05:00 PM"
   }]
 }, { timestamps: true });
 

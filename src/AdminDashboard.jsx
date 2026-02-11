@@ -1,4 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import CoachModal from './components/CoachModal';
+import MemberDetailSidebar from './components/MembersModal';
+import PlanModal from './components/PlanModal';
+import ProductModal from './components/ProductModal';
+import ExerciseModal from './components/ExercisesModal';
+import ExerciseViewModal from './components/ExerciseViewModal';
+import DeleteConfirmModal from './components/DeleteConfirmModal';
 
 const AdminDashboard = ({ onLogout }) => {
   const [users, setUsers] = useState([]);
@@ -8,6 +15,10 @@ const AdminDashboard = ({ onLogout }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
 
+
+
+const [itemToDelete, setItemToDelete] = useState(null); // Stores the object (Coach, Plan, etc.)
+const [deleteType, setDeleteType] = useState(''); // 'member', 'coach', 'plan', 'product', 'exercise'
 
   
 // Product States
@@ -29,8 +40,10 @@ const [newCoach, setNewCoach] = useState({
   name: '', 
   specialty: '', 
   image: '', 
-  availability: [] 
+  availableDates: [] // Use this name now
 });
+
+
 
   // Plan States
   const [plans, setPlans] = useState([]);
@@ -88,37 +101,27 @@ const handleAddProduct = async (e) => {
   }
 };
 
-const handleDeleteProduct = async (id) => {
-  if (window.confirm("Remove this product from inventory?")) {
-    const res = await fetch(`http://127.0.0.1:5000/api/products/${id}`, { method: 'DELETE' });
-    if (res.ok) setProducts(products.filter(p => p._id !== id));
-  }
-};
 
-  // --- COACH FUNCTIONS ---
-  const handleDeleteCoach = async (id) => {
-    if (window.confirm("Remove this coach from the team?")) {
-      const res = await fetch(`http://127.0.0.1:5000/api/coaches/${id}`, { method: 'DELETE' });
-      if (res.ok) setCoaches(coaches.filter(c => c._id !== id));
-    }
-  };
+
+
+  
 
   const handleAddCoach = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('http://127.0.0.1:5000/api/coaches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCoach)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCoaches([...coaches, data.coach]);
-        setShowCoachModal(false);
-        setNewCoach({ name: '', specialty: '', experience: '', image: '' });
-      }
-    } catch (err) { console.error("Error adding coach:", err); }
-  };
+  e.preventDefault();
+  try {
+    const res = await fetch('http://127.0.0.1:5000/api/coaches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCoach)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setCoaches([...coaches, data.coach || data]);
+      setShowCoachModal(false);
+      setNewCoach({ name: '', specialty: '', image: '', availableDates: [] });
+    }
+  } catch (err) { console.error("Error adding coach:", err); }
+};
 
   // --- PLAN FUNCTIONS ---
   const handleAddPlan = async (e) => {
@@ -138,14 +141,7 @@ const handleDeleteProduct = async (id) => {
     } catch (err) { console.error("Error adding plan:", err); }
   };
 
-  const handleDeletePlan = async (id) => {
-      if(window.confirm("Delete this membership plan?")) {
-        try {
-            const res = await fetch(`http://127.0.0.1:5000/api/plans/${id}`, { method: 'DELETE' });
-            if(res.ok) setPlans(plans.filter(p => p._id !== id));
-        } catch(err) { console.error(err); }
-      }
-  };
+  
 
   const convertToBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -167,42 +163,54 @@ const handleDeleteProduct = async (id) => {
   };
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to remove ${name}?`)) {
+    
       try {
         const res = await fetch(`http://127.0.0.1:5000/api/users/${id}`, { method: 'DELETE' });
         if (res.ok) setUsers(users.filter(u => u._id !== id));
       } catch (err) { console.error("Delete error:", err); }
-    }
+    
   };
 
-  const addAvailabilityRow = () => {
-  setNewCoach({
-    ...newCoach,
-    availability: [...newCoach.availability, { day: 'Monday', hours: '' }]
-  });
-};
-// Update availability row
-const updateAvailability = (index, field, value) => {
-  const updatedSched = [...newCoach.availability];
-  updatedSched[index][field] = value;
-  setNewCoach({ ...newCoach, availability: updatedSched });
+  const toggleDate = (dateString) => {
+  // Ensure we have an array to work with
+  let currentDates = [...(newCoach.availableDates || [])];
+  
+  // Check if this date is already selected
+  const existingIndex = currentDates.findIndex(d => d.date === dateString);
+
+  if (existingIndex > -1) {
+    // If it exists, remove it (Deselect)
+    currentDates.splice(existingIndex, 1);
+  } else {
+    // If it doesn't exist, add it with a default time
+    currentDates.push({ date: dateString, hours: '08:00 AM - 05:00 PM' });
+  }
+
+  setNewCoach({ ...newCoach, availableDates: currentDates });
 };
 
-const removeAvailability = (index) => {
-  const updatedSched = newCoach.availability.filter((_, i) => i !== index);
-  setNewCoach({ ...newCoach, availability: updatedSched });
+// Helper to update the hours of a specific date already in the list
+const updateDateHours = (dateString, newHours) => {
+  const updated = newCoach.availableDates.map(d => 
+    d.date === dateString ? { ...d, hours: newHours } : d
+  );
+  setNewCoach({ ...newCoach, availableDates: updated });
 };
+
 
 // --- OPEN MODAL FOR EDITING ---
 const openEditModal = (coach) => {
   setIsEditingCoach(true);
   setCurrentCoachId(coach._id);
+  
+  // Important: We load 'availableDates' into the state
   setNewCoach({
     name: coach.name,
     specialty: coach.specialty,
     image: coach.image,
-    availability: coach.availability || [] // If they have no schedule yet, start empty
+    availableDates: coach.availableDates || [] 
   });
+  
   setShowCoachModal(true);
 };
 
@@ -226,6 +234,34 @@ const handleUpdateCoach = async (e) => {
     }
   } catch (err) {
     console.error("Update Error:", err);
+  }
+};
+
+const handleUniversalDelete = async () => {
+  if (!itemToDelete) return;
+
+  const routes = {
+    member: `http://127.0.0.1:5000/api/users/${itemToDelete._id}`,
+    coach: `http://127.0.0.1:5000/api/coaches/${itemToDelete._id}`,
+    plan: `http://127.0.0.1:5000/api/plans/${itemToDelete._id}`,
+    product: `http://127.0.0.1:5000/api/products/${itemToDelete._id}`,
+    exercise: `http://127.0.0.1:5000/api/exercises/${itemToDelete._id}`
+  };
+
+  try {
+    const res = await fetch(routes[deleteType], { method: 'DELETE' });
+    if (res.ok) {
+      // Update the correct list in your state
+      if (deleteType === 'member') setUsers(users.filter(u => u._id !== itemToDelete._id));
+      if (deleteType === 'coach') setCoaches(coaches.filter(c => c._id !== itemToDelete._id));
+      if (deleteType === 'plan') setPlans(plans.filter(p => p._id !== itemToDelete._id));
+      if (deleteType === 'product') setProducts(products.filter(p => p._id !== itemToDelete._id));
+      if (deleteType === 'exercise') setExercises(exercises.filter(e => e._id !== itemToDelete._id));
+      
+      setIsDeleteModalOpen(false);
+    }
+  } catch (err) {
+    console.error("Delete failed:", err);
   }
 };
 
@@ -356,7 +392,7 @@ const handleAddExercise = async (e) => {
             <h3 className="text-2xl font-black text-white mb-2">{plan.name}</h3>
             <p className="text-4xl font-black text-orange-500 mb-2">₱{plan.price}</p>
             <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-8">Valid {plan.duration} {plan.durationUnit}(s)</p>
-            <button onClick={() => handleDeletePlan(plan._id)} className="w-full py-3 bg-red-600/10 text-red-500 rounded-xl font-black text-xs uppercase hover:bg-red-600 hover:text-white transition">Delete Plan</button>
+            <button onClick={() => { setItemToDelete(plan); setDeleteType('plan'); setIsDeleteModalOpen(true); }} className="w-full py-3 bg-red-600/10 text-red-500 rounded-xl font-black text-xs uppercase hover:bg-red-600 hover:text-white transition">🗑️</button>
           </div>
         ))}
       </div>
@@ -381,33 +417,46 @@ const handleAddExercise = async (e) => {
       </header>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {coaches.map(coach => (
-  <div key={coach._id} className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative group">
+  <div key={coach._id} className="bg-slate-900 border border-slate-800 p-6 rounded-[32px] relative group hover:border-orange-500/50 transition-all">
+    
+    {/* Coach Image */}
     <div className="w-16 h-16 bg-slate-800 rounded-2xl mb-4 overflow-hidden border border-slate-700">
       <img src={coach.image || 'https://via.placeholder.com/150'} alt={coach.name} className="w-full h-full object-cover" />
     </div>
-    <h3 className="text-xl font-bold mb-1 text-white">{coach.name}</h3>
-    <p className="text-orange-500 font-bold text-xs mb-4 uppercase tracking-wider">{coach.specialty}</p>
+
+    {/* Coach Info */}
+    <h3 className="text-xl font-black text-white mb-1 uppercase italic tracking-tighter">{coach.name}</h3>
+    <p className="text-orange-500 font-black text-[10px] uppercase tracking-[3px] mb-4">{coach.specialty}</p>
     
-    {/* Display a mini version of the schedule */}
-    <div className="space-y-1 mb-6">
-      {coach.availability?.map((s, i) => (
-        <p key={i} className="text-[9px] text-slate-500 font-bold uppercase">{s.day}: {s.hours}</p>
-      ))}
+    {/* --- NEW: DISPLAYING THE CALENDAR DATES & HOURS --- */}
+    <div className="space-y-2 mb-6 bg-black/20 p-3 rounded-xl border border-slate-800/50">
+      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Duty Schedule</p>
+      {coach.availableDates && coach.availableDates.length > 0 ? (
+        coach.availableDates.slice(0, 3).map((slot, i) => (
+          <div key={i} className="flex justify-between items-center text-[10px] font-bold">
+            <span className="text-slate-300">
+              {new Date(slot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+            <span className="text-orange-500 italic">{slot.hours}</span>
+          </div>
+        ))
+      ) : (
+        <p className="text-[10px] text-slate-600 italic">No dates set yet.</p>
+      )}
+      {coach.availableDates?.length > 3 && (
+        <p className="text-[9px] text-slate-500 text-center pt-1">+ {coach.availableDates.length - 3} more days</p>
+      )}
     </div>
 
+    {/* Actions */}
     <div className="flex gap-2">
       <button 
         onClick={() => openEditModal(coach)}
-        className="flex-1 py-2 bg-slate-800 text-white text-[10px] font-black uppercase rounded-lg hover:bg-orange-600 transition"
+        className="flex-1 py-3 bg-white text-black text-[10px] font-black uppercase rounded-xl hover:bg-orange-600 hover:text-white transition shadow-xl"
       >
         Edit Schedule
       </button>
-      <button 
-        onClick={() => handleDeleteCoach(coach._id)} 
-        className="px-3 py-2 bg-red-600/10 text-red-500 text-[10px] font-black uppercase rounded-lg hover:bg-red-600 hover:text-white transition"
-      >
-        🗑️
-      </button>
+      <button onClick={() => { setItemToDelete(coach); setDeleteType('coach'); setIsDeleteModalOpen(true); }}>🗑️</button>
     </div>
   </div>
 ))}
@@ -434,16 +483,17 @@ const handleAddExercise = async (e) => {
                 <td className="p-5 text-slate-400">{u.plan}</td>
                 <td className="p-5 text-center"><span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${u.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{u.status}</span></td>
                 <td className="p-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                  <button 
-    onClick={() => {
-      
-        handleDelete(u._id, u.name);
-      
-    }} 
-    className="text-[10px] bg-red-600/10 text-red-500 border border-red-600/20 px-4 py-2 rounded-lg font-black hover:bg-red-600 hover:text-white transition uppercase"
-  >
-    Delete
-  </button>
+                 <button 
+  onClick={(e) => {
+    e.stopPropagation(); // Prevents opening the Verification Sidebar
+    setItemToDelete(u);   // Set the member as the item to delete
+    setDeleteType('member');
+    setIsDeleteModalOpen(true);
+  }} 
+  className="text-[10px] bg-red-600/10 text-red-500 border border-red-600/20 px-4 py-2 rounded-lg font-black hover:bg-red-600 hover:text-white transition uppercase"
+>
+  Delete
+</button>
                   <button onClick={() => toggleStatus(u._id, u.status)} className="text-[10px] bg-white text-black px-4 py-2 rounded-lg font-black uppercase tracking-widest">{u.status === 'pending' ? 'Approve' : 'Suspend'}</button>
                 </td>
               </tr>
@@ -483,7 +533,7 @@ const handleAddExercise = async (e) => {
                 <p className="text-orange-500 font-black text-lg">₱{product.price}</p>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Stock: {product.stock}</p>
               </div>
-              <button onClick={() => handleDeleteProduct(product._id)} className="bg-red-600/10 text-red-500 p-2 rounded-lg hover:bg-red-600 hover:text-white transition">🗑️</button>
+              <button onClick={() => { setItemToDelete(product); setDeleteType('product'); setIsDeleteModalOpen(true); }}>🗑️</button>
             </div>
           </div>
         ))}
@@ -577,18 +627,18 @@ const handleAddExercise = async (e) => {
     </button>
 
     {/* Only keep this part in AdminDashboard.jsx */}
-    <button 
-      onClick={async (e) => {
-        e.stopPropagation(); // Prevents opening the modal while deleting
-        if(window.confirm(`Remove ${ex.name} from the vault?`)) {
-          await fetch(`http://127.0.0.1:5000/api/exercises/${ex._id}`, { method: 'DELETE' });
-          setExercises(exercises.filter(e => e._id !== ex._id));
-        }
-      }}
-      className="px-4 py-3 bg-red-600/10 text-red-500 rounded-xl font-black text-[10px] uppercase hover:bg-red-600 hover:text-white transition"
-    >
-      🗑️
-    </button>
+    {/* Inside the exercise .map loop */}
+<button 
+  onClick={(e) => {
+    e.stopPropagation(); // Prevents opening the "View Focus" modal
+    setItemToDelete(ex);
+    setDeleteType('exercise');
+    setIsDeleteModalOpen(true);
+  }}
+  className="px-4 py-3 bg-red-600/10 text-red-500 rounded-xl font-black text-[10px] uppercase hover:bg-red-600 hover:text-white transition"
+>
+  🗑️
+</button>
   </div>
 </div>
           ))}
@@ -601,322 +651,67 @@ const handleAddExercise = async (e) => {
 
      {/* --- SIDE PANELS & MODALS (ALL INSIDE THE RETURN) --- */}
       
-      {selectedUser && (
-  <aside className="fixed right-0 top-0 w-80 h-full bg-slate-900 border-l border-slate-800 p-8 shadow-2xl animate-in slide-in-from-right duration-300 z-30 overflow-y-auto">
-    <button onClick={() => setSelectedUser(null)} className="text-slate-500 hover:text-white mb-6 font-bold flex items-center gap-2">✕ Close</button>
-    
-    <p className="text-[10px] font-black uppercase text-orange-500 tracking-[3px] mb-6 text-center">Verification Vault</p>
-    
-    <div className="space-y-6">
-      {/* 1. REPLACE TEXT INFO WITH THE TICKET IMAGE */}
-      <div className="bg-black/40 border border-slate-800 rounded-2xl p-2 overflow-hidden">
-        <p className="text-[10px] text-slate-500 uppercase font-black mb-2 px-2">Uploaded Payment Ticket</p>
-        {selectedUser.paymentTicket ? (
-          <img 
-            src={selectedUser.paymentTicket} 
-            className="w-full h-auto rounded-xl shadow-2xl border border-slate-700 hover:scale-105 transition cursor-zoom-in" 
-            alt="Ticket" 
-            onClick={() => window.open(selectedUser.paymentTicket)} 
-          />
-        ) : (
-          <div className="h-48 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-xl">
-             <span className="text-2xl mb-2">🚫</span>
-             <p className="text-[10px] font-bold uppercase italic">No Ticket Uploaded</p>
-          </div>
-        )}
-      </div>
+     <MemberDetailSidebar 
+  selectedUser={selectedUser}
+  onClose={() => setSelectedUser(null)}
+  onVerify={(id, status) => {
+    toggleStatus(id, status);
+    setSelectedUser(null);
+  }}
+/>
 
-      {/* 2. KEEP JOIN DATE */}
-      <div className="bg-slate-800/50 p-4 rounded-xl">
-        <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Join Date</p>
-        <p className="font-bold text-white text-sm">{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
-      </div>
+      <DeleteConfirmModal 
+  show={isDeleteModalOpen}
+  onClose={() => setIsDeleteModalOpen(false)}
+  onConfirm={handleUniversalDelete}
+  title={`Remove ${deleteType}?`}
+  itemName={itemToDelete?.name} // This works for all because all your objects have a 'name'
+/>
 
-      {/* 3. VERIFICATION ACTIONS */}
-      {selectedUser.status === 'pending' && (
-        <button 
-          onClick={() => {
-            toggleStatus(selectedUser._id, 'pending'); // This calls your existing toggleStatus to make them 'active'
-            setSelectedUser(null);
-          }}
-          className="w-full bg-green-600 text-white font-black py-4 rounded-xl uppercase text-xs tracking-widest hover:bg-green-500 shadow-lg shadow-green-900/20"
-        >
-          Verify & Activate
-        </button>
-      )}
-    </div>
-  </aside>
-)}
-
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-slate-900">
-          <div className="bg-white p-8 rounded-3xl max-w-sm w-full shadow-2xl">
-            <h2 className="text-2xl font-black tracking-tight mb-2">Delete Member?</h2>
-            <p className="text-slate-500 text-sm mb-6">Are you sure you want to remove <span className="font-bold text-slate-900">{userToDelete?.name}</span>?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl hover:bg-slate-200 transition">Cancel</button>
-              <button onClick={() => { handleDelete(userToDelete._id, userToDelete.name); setIsDeleteModalOpen(false); }} className="flex-1 py-3 font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCoachModal && (
-  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
-    <form onSubmit={isEditingCoach ? handleUpdateCoach : handleAddCoach} className="bg-white p-8 rounded-[40px] max-w-lg w-full shadow-2xl overflow-y-auto max-h-[90vh]">
-      <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic">{isEditingCoach ? 'Edit Coach' : 'Add New Coach'}</h2>
       
-      <div className="space-y-4">
-        <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none font-bold" placeholder="Coach Name" value={newCoach.name} onChange={(e) => setNewCoach({...newCoach, name: e.target.value})} />
-        <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none font-bold" placeholder="Specialty (e.g. HIIT, Yoga)" value={newCoach.specialty} onChange={(e) => setNewCoach({...newCoach, specialty: e.target.value})} />
-        
-        {/* AVAILABILITY SECTION */}
-        <div className="pt-4 border-t border-slate-100">
-          <div className="flex justify-between items-center mb-4">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Weekly Schedule</label>
-            <button type="button" onClick={addAvailabilityRow} className="text-orange-600 font-black text-[10px] uppercase hover:underline">+ Add Day</button>
-          </div>
-          
-          <div className="space-y-3">
-            {newCoach.availability.map((sched, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <select 
-                  className="bg-slate-100 rounded-lg p-2 text-xs font-bold outline-none"
-                  value={sched.day}
-                  onChange={(e) => updateAvailability(index, 'day', e.target.value)}
-                >
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <input 
-                  placeholder="8:00 AM - 12:00 PM" 
-                  className="flex-1 bg-slate-100 rounded-lg p-2 text-xs outline-none"
-                  value={sched.hours}
-                  onChange={(e) => updateAvailability(index, 'hours', e.target.value)}
-                />
-                <button type="button" onClick={() => removeAvailability(index)} className="text-red-500 text-xs px-2">✕</button>
-              </div>
-            ))}
-          </div>
-        </div>
+      <CoachModal 
+  show={showCoachModal}
+  onClose={() => setShowCoachModal(false)}
+  isEditing={isEditingCoach}
+  newCoach={newCoach}
+  setNewCoach={setNewCoach}
+  onSubmit={isEditingCoach ? handleUpdateCoach : handleAddCoach}
+  toggleDate={toggleDate}
+  updateDateHours={updateDateHours}
+  convertToBase64={convertToBase64}
+/>
+      <PlanModal 
+  show={showPlanModal}
+  onClose={() => setShowPlanModal(false)}
+  onSubmit={handleAddPlan}
+  newPlan={newPlan}
+  setNewPlan={setNewPlan}
+/>
 
-        <input type="file" accept="image/*" className="w-full mt-4 text-xs" onChange={async (e) => { const file = e.target.files[0]; if(file) { const base64 = await convertToBase64(file); setNewCoach({...newCoach, image: base64}); } }} />
-      </div>
+      <ProductModal 
+  show={showProductModal}
+  onClose={() => setShowProductModal(false)}
+  onSubmit={handleAddProduct}
+  newProduct={newProduct}
+  setNewProduct={setNewProduct}
+  convertToBase64={convertToBase64}
+/>
 
-      <div className="flex gap-3 mt-8">
-        <button type="button" onClick={() => setShowCoachModal(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">Cancel</button>
-        <button type="submit" className="flex-1 py-3 font-bold bg-orange-600 text-white rounded-xl hover:bg-orange-700 uppercase text-xs tracking-widest">Save Trainer</button>
-      </div>
-    </form>
-  </div>
-)}
+      {/* Add Exercise Modal */}
+<ExerciseModal 
+  show={showExerciseModal}
+  onClose={() => setShowExerciseModal(false)}
+  onSubmit={handleAddExercise}
+  newExercise={newExercise}
+  setNewExercise={setNewExercise}
+  convertToBase64={convertToBase64}
+/>
 
-      {showPlanModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
-          <form onSubmit={handleAddPlan} className="bg-white p-8 rounded-[40px] max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
-            <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic text-slate-900">Create Membership Plan</h2>
-            <div className="space-y-4">
-              <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-slate-900" placeholder="e.g. Bronze Access" value={newPlan.name} onChange={(e) => setNewPlan({...newPlan, name: e.target.value})} />
-              <input required type="number" className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-orange-600" placeholder="0.00" value={newPlan.price} onChange={(e) => setNewPlan({...newPlan, price: e.target.value})} />
-              <div className="flex gap-4">
-                 <input required type="number" className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none text-slate-900" value={newPlan.duration} onChange={(e) => setNewPlan({...newPlan, duration: e.target.value})} />
-                 <select className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none text-slate-900" value={newPlan.durationUnit} onChange={(e) => setNewPlan({...newPlan, durationUnit: e.target.value})}>
-                    <option value="month">Month(s)</option>
-                    <option value="year">Year(s)</option>
-                    <option value="day">Day(s)</option>
-                    <option value="week">Week(s)</option>
-                 </select>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-8"><button type="button" onClick={() => setShowPlanModal(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">Cancel</button><button type="submit" className="flex-1 py-3 font-bold bg-orange-600 text-white rounded-xl hover:bg-orange-700">Save Plan</button></div>
-          </form>
-        </div>
-      )}
-
-      {/* --- ADD PRODUCT MODAL --- */}
-      {showProductModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
-          <form onSubmit={handleAddProduct} className="bg-white p-8 rounded-[40px] max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
-            <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic text-slate-900">Add New Product</h2>
-            <div className="space-y-4 text-slate-900">
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Product Name</label>
-                <input required className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold" placeholder="e.g. Whey Protein" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} />
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Price (PHP)</label>
-                  <input required type="number" className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-orange-600" placeholder="0" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: e.target.value})} />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Stock</label>
-                  <input required type="number" className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none" placeholder="0" value={newProduct.stock} onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})} />
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Category</label>
-                <select className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold" value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}>
-                  <option value="Supplement">Supplement</option>
-                  <option value="Gear">Gym Gear</option>
-                  <option value="Drinks">Drinks</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Product Image</label>
-                <input type="file" accept="image/*" className="w-full mt-1 text-xs file:bg-orange-600 file:border-none file:px-4 file:py-2 file:rounded-lg file:text-white file:font-black" 
-                  onChange={async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const base64 = await convertToBase64(file);
-                      setNewProduct({...newProduct, image: base64});
-                    }
-                  }} 
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-8">
-              <button type="button" onClick={() => setShowProductModal(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">Cancel</button>
-              <button type="submit" className="flex-1 py-3 font-bold bg-orange-600 text-white rounded-xl hover:bg-orange-700">Save Product</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* --- ADD EXERCISE MODAL --- */}
-      {showExerciseModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
-          <form onSubmit={handleAddExercise} className="bg-white p-8 rounded-[40px] max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
-            <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic text-slate-900">New Vault Exercise</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Exercise Name</label>
-                <input 
-                  required 
-                  className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-slate-900" 
-                  placeholder="e.g. Bench Press" 
-                  value={newExercise.name} 
-                  onChange={(e) => setNewExercise({...newExercise, name: e.target.value})} 
-                />
-              </div>
-
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Muscle Group</label>
-                  <select 
-                    className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-slate-900"
-                    value={newExercise.muscleGroup}
-                    onChange={(e) => setNewExercise({...newExercise, muscleGroup: e.target.value})}
-                  >
-                    <option value="Chest">Chest</option>
-                    <option value="Back">Back</option>
-                    <option value="Legs">Legs</option>
-                    <option value="Shoulders">Shoulders</option>
-                    <option value="Arms">Arms</option>
-                    <option value="Core">Core/Abs</option>
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Difficulty</label>
-                  <select 
-                    className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none font-bold text-slate-900"
-                    value={newExercise.difficulty}
-                    onChange={(e) => setNewExercise({...newExercise, difficulty: e.target.value})}
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Instructions</label>
-                <textarea 
-                  className="w-full bg-slate-100 rounded-xl px-4 py-3 mt-1 outline-none text-slate-900 text-sm h-24 resize-none" 
-                  placeholder="Step by step guide..." 
-                  value={newExercise.instructions} 
-                  onChange={(e) => setNewExercise({...newExercise, instructions: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Exercise GIF / Image</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="w-full mt-1 text-xs file:bg-orange-600 file:border-none file:px-4 file:py-2 file:rounded-lg file:text-white file:font-black cursor-pointer"
-                  onChange={async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const base64 = await convertToBase64(file);
-                      setNewExercise({...newExercise, image: base64});
-                    }
-                  }} 
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-8">
-              <button type="button" onClick={() => setShowExerciseModal(false)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">Cancel</button>
-              <button type="submit" className="flex-1 py-3 font-bold bg-orange-600 text-white rounded-xl hover:bg-orange-700 shadow-lg">Save to Vault</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* --- EXERCISE VIEW MODAL (BIGGER VERSION) --- */}
-{viewingExercise && (
-  <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in zoom-in duration-300">
-    
-    {/* Close Button */}
-    <button 
-      onClick={() => setViewingExercise(null)} 
-      className="absolute top-8 right-8 text-white/50 hover:text-orange-500 transition-all text-4xl z-[210]"
-    >
-      ✕
-    </button>
-
-    <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-      
-      {/* LEFT: BIG IMAGE/GIF */}
-      <div className="rounded-[40px] overflow-hidden border-4 border-slate-800 shadow-[0_0_50px_rgba(234,88,12,0.2)] bg-slate-900">
-        {viewingExercise.image ? (
-          <img src={viewingExercise.image} className="w-full h-auto object-contain" alt={viewingExercise.name} />
-        ) : (
-          <div className="aspect-video flex items-center justify-center text-slate-700 font-black">NO MEDIA</div>
-        )}
-      </div>
-
-      {/* RIGHT: DETAILS */}
-      <div className="text-white">
-        <div className="mb-8">
-          <p className="text-orange-500 font-black text-xs uppercase tracking-[4px] mb-2">Technique Guide</p>
-          <h2 className="text-6xl font-black uppercase italic tracking-tighter leading-none mb-4">
-            {viewingExercise.name}
-          </h2>
-          <div className="flex gap-3">
-             <span className="bg-slate-800 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-700">{viewingExercise.muscleGroup}</span>
-             <span className="bg-orange-600 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{viewingExercise.difficulty}</span>
-          </div>
-        </div>
-
-        <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[40px]">
-          <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 mb-4">How to Perform:</h4>
-          <p className="text-lg text-slate-300 leading-relaxed font-medium italic">
-            {viewingExercise.instructions || "Contact your Personal Trainer for specific coaching cues and form correction for this movement."}
-          </p>
-        </div>
-
-        <button 
-          onClick={() => setViewingExercise(null)}
-          className="mt-10 px-10 py-4 bg-white text-black font-black uppercase rounded-2xl hover:bg-orange-600 hover:text-white transition-all shadow-2xl"
-        >
-          Got it, let's work!
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+{/* View Focus Modal */}
+<ExerciseViewModal 
+  exercise={viewingExercise}
+  onClose={() => setViewingExercise(null)}
+/>
     </div>
   );
 };
