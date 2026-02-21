@@ -7,6 +7,7 @@ import ExerciseModal from './components/ExercisesModal';
 import ExerciseViewModal from './components/ExerciseViewModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 
+
 const AdminDashboard = ({ onLogout }) => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
