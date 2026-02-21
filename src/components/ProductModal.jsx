@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // 👈 Added useEffect
 
 const ProductModal = ({ 
   show, 
@@ -6,14 +6,36 @@ const ProductModal = ({
   onSubmit, 
   newProduct, 
   setNewProduct, 
-  convertToBase64 
+  convertToBase64,
+  isEditing,      // 👈 Added prop
+  currentProduct  // 👈 Added prop
 }) => {
+
+  // This hook fills the form when you click "Edit"
+  useEffect(() => {
+    if (isEditing && currentProduct) {
+      setNewProduct({
+        name: currentProduct.name,
+        price: currentProduct.price,
+        stock: currentProduct.stock,
+        category: currentProduct.category || 'Supplement',
+        image: currentProduct.image || ''
+      });
+    } else {
+      // Reset to empty when adding a NEW product
+      setNewProduct({ name: '', price: '', stock: '', category: 'Supplement', image: '' });
+    }
+  }, [isEditing, currentProduct, show, setNewProduct]);
+
   if (!show) return null;
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900">
       <form onSubmit={onSubmit} className="bg-white p-8 rounded-[40px] max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
-        <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic text-slate-900">Add New Product</h2>
+        {/* Changed Title to be dynamic */}
+        <h2 className="text-2xl font-black tracking-tight mb-6 uppercase italic text-slate-900">
+          {isEditing ? 'Edit Product' : 'Add New Product'}
+        </h2>
         
         <div className="space-y-4 text-slate-900">
           <div>
@@ -94,7 +116,7 @@ const ProductModal = ({
             type="submit" 
             className="flex-1 py-4 font-bold bg-orange-600 text-white rounded-2xl hover:bg-orange-700 shadow-xl shadow-orange-900/20 uppercase text-[10px] tracking-widest"
           >
-            Save Product
+            {isEditing ? 'Update Product' : 'Save Product'}
           </button>
         </div>
       </form>

@@ -220,6 +220,21 @@ app.post('/api/plans', async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Error creating plan" }); }
 });
 
+// Update a membership plan (Admin)
+app.put('/api/plans/:id', async (req, res) => {
+  try {
+    const updatedPlan = await Plan.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true }
+    );
+    if (!updatedPlan) return res.status(404).json({ message: "Plan not found" });
+    res.json(updatedPlan);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating plan" });
+  }
+});
+
 app.delete('/api/plans/:id', async (req, res) => {
   try {
     await Plan.findByIdAndDelete(req.params.id);
@@ -245,6 +260,19 @@ app.post('/api/products', async (req, res) => {
     res.json(newProduct);
   } catch (err) {
     res.status(500).json({ message: "Error adding product" });
+  }
+});
+
+app.put('/api/products/:id', async (req, res) => {
+  try {
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true } // This returns the updated version instead of the old one
+    );
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating product" });
   }
 });
 
