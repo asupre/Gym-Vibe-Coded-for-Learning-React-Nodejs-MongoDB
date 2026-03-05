@@ -26,12 +26,12 @@ const ExercisesTab = ({
         <div className="flex gap-4">
           {selectedFolder && (
             <Button 
-              variant="outline" 
-              onClick={() => setSelectedFolder(null)} 
-              className="px-6 py-6 border-slate-800 text-white hover:bg-slate-800 rounded-2xl font-black uppercase text-xs"
-            >
-              ← Back
-            </Button>
+    variant="ghost" 
+    onClick={() => setSelectedFolder(null)} 
+    className="px-4 py-6 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white rounded-2xl font-black uppercase text-[10px] tracking-widest bg-transparent"
+  >
+    <span className="mr-2">←</span> Back
+  </Button>
           )}
           <Button 
             onClick={onAddClick} 
